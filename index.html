@@ -69,6 +69,8 @@
         let distance=dm?+dm[1]:(decimals[0]||0),duration=clocks.map(parseClock).filter(v=>v>=10&&v<600).sort((a,b)=>b-a)[0]||0;
         const pm=text.match(/(\d{1,2})\s*['′’]\s*(\d{2})/);
         if(!duration&&distance&&pm)duration=distance*(+pm[1]+ +pm[2]/60);
+        if(!distance&&duration&&pm){const paceMinutes=+pm[1]+ +pm[2]/60;if(paceMinutes>=3&&paceMinutes<=20)distance=+(duration/paceMinutes).toFixed(2)}
+        if(!distance&&duration){const entered=prompt("已识别时长，但未识别距离。请输入公里数（例如 4.75）：","");const value=Number(String(entered||"").replace(",","."));if(value>0&&value<=200)distance=value}
         const cadence=cm?+cm[1]:(integers.find(v=>!bpmValues.includes(v))||0);
         if(!distance||!duration)return show(`识别不完整：距离 ${distance||"未识别"} km，时长 ${duration?Math.round(duration)+" 分钟":"未识别"}。请保留顶部数据区域后重试。`);
         const now=new Date(),date=String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
