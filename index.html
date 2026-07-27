@@ -60,15 +60,19 @@
         const result=await worker.recognize(file);await worker.terminate();
         const text=result.data.text.replace(/[，,]/g,".").replace(/[|]/g,"1");
         const dm=text.match(/(\d{1,3}(?:\.\d{1,2})?)\s*(?:km|公里)/i);
-        const hm=text.match(/(\d{2,3})\s*(?:bpm|次\/分)/i);
+        const bpmValues=[...text.matchAll(/(\d{2,3})\s*bpm/gi)].map(m=>+m[1]).filter(v=>v>=90&&v<=220);
+        const hm=bpmValues.length?Math.min(...bpmValues):0;
         const cm=text.match(/(\d{2,3})\s*(?:spm|步\/分)/i);
         const clocks=[...text.matchAll(/\b(\d{1,2}:\d{2}(?::\d{2})?)\b/g)].map(m=>m[1]);
-        let distance=dm?+dm[1]:0,duration=clocks.map(parseClock).filter(v=>v>=5&&v<600).sort((a,b)=>b-a)[0]||0;
+        const decimals=[...text.matchAll(/\b(\d{1,2}\.\d{1,2})\b/g)].map(m=>+m[1]).filter(v=>v>=0.5&&v<=100);
+        const integers=[...text.matchAll(/\b(\d{3})\b/g)].map(m=>+m[1]).filter(v=>v>=120&&v<=220);
+        let distance=dm?+dm[1]:(decimals[0]||0),duration=clocks.map(parseClock).filter(v=>v>=10&&v<600).sort((a,b)=>b-a)[0]||0;
         const pm=text.match(/(\d{1,2})\s*['′’]\s*(\d{2})/);
         if(!duration&&distance&&pm)duration=distance*(+pm[1]+ +pm[2]/60);
-        if(!distance||!duration)return show("未能完整识别距离和时长。请裁剪截图，只保留跑步数据区域后重试。");
+        const cadence=cm?+cm[1]:(integers.find(v=>!bpmValues.includes(v))||0);
+        if(!distance||!duration)return show(`识别不完整：距离 ${distance||"未识别"} km，时长 ${duration?Math.round(duration)+" 分钟":"未识别"}。请保留顶部数据区域后重试。`);
         const now=new Date(),date=String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
-        runs.push([date,distance,duration,hm?+hm[1]:0,cm?+cm[1]:0]);runs=runs.slice(-24);
+        runs.push([date,distance,duration,hm,cadence]);runs=runs.slice(-24);
         localStorage.setItem("runwise-runs",JSON.stringify(runs));$("source").textContent=`${file.name} · 截图识别`;render();
         show(`识别完成：${distance.toFixed(2)} km，${Math.round(duration)} 分钟。已加入分析。`);
       }catch(e){show("截图识别失败，请换用清晰的完整截图后重试。")}
